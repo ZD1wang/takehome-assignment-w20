@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 
 def create_response(
-    data: dict = None, status: int = 200, message: str = ""
+        data: dict = None, status: int = 200, message: str = ""
 ) -> Tuple[Response, int]:
     """Wraps response in a consistent format throughout the API.
     
@@ -51,9 +51,16 @@ def mirror(name):
     data = {"name": name}
     return create_response(data)
 
+# Part 6: Query
 @app.route("/shows", methods=['GET'])
 def get_all_shows():
-    return create_response({"shows": db.get('shows')})
+    minEpisodes = request.args.get("minEpisodes")
+    shows = db.get("shows")
+    if minEpisodes is not None:
+        minEpisodes = int(minEpisodes)
+        shows = list(filter(lambda x: x["episodes_seen"] > minEpisodes, shows))
+    return create_response({"shows": shows})
+
 
 @app.route("/shows/<id>", methods=['DELETE'])
 def delete_show(id):
@@ -64,6 +71,44 @@ def delete_show(id):
 
 
 # TODO: Implement the rest of the API here!
+
+# Part 2: GET
+@app.route("/shows/<id>", methods=['GET'])
+def get_single_show(id):
+    show = db.getById("shows", int(id))
+    if show is None:
+        return create_response(status=404, message="There doesn't exist a show with the provided id!")
+    return create_response(status=200, message="", data=show)
+
+
+# Part 3: POST
+@app.route("/shows", methods=['POST'])
+def create_new_show():
+    data = request.get_json()
+    name = data["name"]
+    episodes_seen = data["episodes_seen"]
+    show = db.create("shows", {"name": name, "episodes_seen": episodes_seen})
+    if show is None:
+        return create_response(status=404, message="Show could not be created")
+    return create_response(data=show, message="Show created with id {}".format(show["id"]))
+
+
+# Part 4: PUT
+@app.route("/shows/<id>", methods=['PUT'])
+def put_show(id):
+    data = request.get_json()
+    updated = {}
+    name = data["name"]
+    episodes_seen = data["episodes_seen"]
+    if name is not None:
+        updated["name"] = name
+    if episodes_seen is not None:
+        updated["episodes_seen"] = int(episodes_seen)
+    show = db.updateById(type="shows", id=int(id), update_values=updated)
+    if show is None:
+        return create_response(status=404, message="Show with id {} could not be found".format(id))
+    return create_response(data=show, message="Show updated with id {}".format(id))
+
 
 """
 ~~~~~~~~~~~~ END API ~~~~~~~~~~~~
